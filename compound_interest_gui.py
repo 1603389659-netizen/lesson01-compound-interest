@@ -1,20 +1,37 @@
-# 复利计算器（Tkinter 图形界面，含复利与单利对比表格）
+# 复利计算器（Tkinter 图形界面，含复利/单利对比表格与增长曲线图）
 # 复利公式：本金 × (1 + 年利率) ^ 年数
 # 单利公式：本金 × (1 + 年利率 × 年数)
 
 import tkinter as tk
 from tkinter import ttk
 
+import matplotlib
+matplotlib.use("TkAgg")  # 使用 Tkinter 后端
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+# 让 matplotlib 正常显示中文与负号
+matplotlib.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei"]
+matplotlib.rcParams["axes.unicode_minus"] = False
+
 
 def calculate(principal, rate):
-    """计算 10、20、30 年的复利终值、单利终值及差额，返回 [(年数, 复利, 单利, 差额), ...]"""
+    """计算 10、20、30 年的复利终值、单利终值及差额，用于表格展示"""
     results = []
     for years in (10, 20, 30):
-        compound = principal * (1 + rate) ** years   # 复利终值：利息滚存
-        simple = principal * (1 + rate * years)      # 单利终值：利息不滚存
-        diff = compound - simple                      # 差额：复利比单利多出的收益
+        compound = principal * (1 + rate) ** years   # 复利终值
+        simple = principal * (1 + rate * years)      # 单利终值
+        diff = compound - simple                      # 差额
         results.append((years, compound, simple, diff))
     return results
+
+
+def calculate_series(principal, rate, max_years=30):
+    """生成 0~max_years 每一年的复利与单利序列，用于绘制曲线"""
+    years = list(range(0, max_years + 1))
+    compound = [principal * (1 + rate) ** y for y in years]   # 复利曲线
+    simple = [principal * (1 + rate * y) for y in years]     # 单利曲线
+    return years, compound, simple
 
 
 def clear_tree(tree):
@@ -23,8 +40,23 @@ def clear_tree(tree):
         tree.delete(item)
 
 
-def on_calculate(entry_principal, entry_rate, tree):
-    """点击"计算"按钮时触发：读取输入、校验、在表格中显示结果"""
+def plot_curves(fig, ax, canvas, principal, rate):
+    """在图上绘制复利与单利增长曲线"""
+    ax.clear()
+    years, compound, simple = calculate_series(principal, rate)
+    ax.plot(years, compound, label="复利", color="tab:red", marker="o", markersize=3)
+    ax.plot(years, simple, label="单利", color="tab:blue", marker="s", markersize=3)
+    ax.set_xlabel("年份")
+    ax.set_ylabel("金额（元）")
+    ax.set_title("复利与单利增长曲线（0~30 年）")
+    ax.legend()
+    ax.grid(True, linestyle="--", alpha=0.5)
+    fig.tight_layout()
+    canvas.draw()
+
+
+def on_calculate(entry_principal, entry_rate, tree, fig, ax, canvas):
+    """点击"计算"按钮时触发：读取输入、校验、更新表格与曲线图"""
     try:
         principal = float(entry_principal.get())            # 读取本金
         rate = float(entry_rate.get()) / 100                # 百分数转小数：5 → 0.05
@@ -43,13 +75,16 @@ def on_calculate(entry_principal, entry_rate, tree):
         tree.insert("", "end", values=("-", "年利率不能为负数", "", ""))
         return
 
-    # 计算并逐行填入表格
+    # 更新 10/20/30 年对比表格
     clear_tree(tree)
     for years, compound, simple, diff in calculate(principal, rate):
         tree.insert(
             "", "end",
             values=(f"{years} 年", f"{compound:.2f}", f"{simple:.2f}", f"{diff:.2f}"),
         )
+
+    # 更新曲线图
+    plot_curves(fig, ax, canvas, principal, rate)
 
 
 def build(root):
@@ -70,7 +105,7 @@ def build(root):
     tk.Button(
         root,
         text="计算",
-        command=lambda: on_calculate(entry_principal, entry_rate, tree),
+        command=lambda: on_calculate(entry_principal, entry_rate, tree, fig, ax, canvas),
     ).grid(row=2, column=0, columnspan=2, pady=10)
 
     # 结果表格：年份 / 复利终值 / 单利终值 / 差额
@@ -85,6 +120,12 @@ def build(root):
     tree.column("simple", anchor="e", width=140)
     tree.column("diff", anchor="e", width=120)
     tree.grid(row=3, column=0, columnspan=2, padx=10, pady=10)
+
+    # 曲线图：0~30 年复利与单利增长曲线
+    fig = Figure(figsize=(6, 4), dpi=100)
+    ax = fig.add_subplot(111)
+    canvas = FigureCanvasTkAgg(fig, master=root)
+    canvas.get_tk_widget().grid(row=4, column=0, columnspan=2, padx=10, pady=10)
 
 
 def main():
