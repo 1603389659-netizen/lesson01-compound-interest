@@ -169,3 +169,51 @@ for years in (10, 20, 30):
 观察：差额随年限增长明显加速（10 年差 1288.95 元，30 年扩大到 18219.42 元），体现复利的指数增长效应。
 
 同时验证输入校验仍生效：输入本金 10000、年利率 -5 时，程序提示"年利率不能为负数"且未进行计算。
+
+---
+
+# 第四阶段：复利与单利增长曲线可视化
+
+> 本阶段仅记录已真实完成的内容，后续步骤完成后另行补充。
+
+## 16. 第四阶段任务
+
+在 `compound_interest_gui.py` 中引入 matplotlib，在现有图形界面（本金/年利率输入框、计算按钮、10/20/30 年对比表格、输入校验）基础上新增增长曲线图：
+
+- 横轴为年份（0～30 年），纵轴为金额（元）；
+- 分别绘制复利与单利两条曲线；
+- 保留输入校验与对比表格，不加入复杂美化。
+
+实现中为支持绘图安装了 matplotlib 3.11.2（含 numpy 等依赖），并配置中文字体以正常显示坐标轴标签。
+
+## 17. 第四阶段核心逻辑
+
+```python
+def calculate_series(principal, rate, max_years=30):
+    """生成 0~max_years 每一年的复利与单利序列，用于绘制曲线"""
+    years = list(range(0, max_years + 1))
+    compound = [principal * (1 + rate) ** y for y in years]   # 复利曲线
+    simple = [principal * (1 + rate * y) for y in years]     # 单利曲线
+    return years, compound, simple
+
+def plot_curves(fig, ax, canvas, principal, rate):
+    ax.clear()
+    years, compound, simple = calculate_series(principal, rate)
+    ax.plot(years, compound, label="复利", color="tab:red")
+    ax.plot(years, simple, label="单利", color="tab:blue")
+    ax.set_xlabel("年份"); ax.set_ylabel("金额（元）")
+    ax.legend(); ax.grid(True, linestyle="--", alpha=0.5)
+    fig.tight_layout(); canvas.draw()
+```
+
+## 18. 第四阶段测试数据与观察
+
+输入本金 10000 元、年利率 5%，10/20/30 年结果如下（与程序输出一致）：
+
+| 年数 | 复利终值（元） | 单利终值（元） | 差额（元） |
+| --- | --- | --- | --- |
+| 10 | 16288.95 | 15000.00 | 1288.95 |
+| 20 | 26532.98 | 20000.00 | 6532.98 |
+| 30 | 43219.42 | 25000.00 | 18219.42 |
+
+观察：随着年限增加，复利与单利的差距逐渐扩大——10 年相差 1288.95 元，20 年扩大到 6532.98 元，30 年达到 18219.42 元。曲线图中复利（指数增长）随时间上翘、与单利（线性增长）的开口越来越大，直观体现了复利的指数增长效应。
